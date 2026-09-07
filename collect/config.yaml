@@ -1,0 +1,94 @@
+# =============================================================================
+# 蓝牙多传感器采集配置（硬件已定型，基本不再改传感器列表）
+#
+# 板卡概览
+#   esp32_gas  蓝牙名 ESP32-Gas   传感器: H2S NH3 VOC CH3SH
+#   esp32_env  蓝牙名 ESP32-Env   传感器: C2H5OH C2H4 DHT1_T/H DHT2_T/H
+#
+# 固件目录
+#   firmware/esp32_gas/esp32_gas.ino
+#   firmware/esp32_env/esp32_env.ino
+#
+# 配对后在「设备管理器 → 端口(COM和LPT)」确认 COM，写入下方 port
+#
+# 统一行协议（两板共用）:
+#   SENSOR:value unit[|KEY:VAL]*
+#   多传感器空格分隔，# 开头行为注释（忽略）
+# 模拟量传感器附 |V:电压；Modbus 传感器附 |STATUS|LOW|HIGH|FS
+# 示例:
+#   H2S:12.34 ppm|V:0.246 NH3:56.78 ppm|V:0.567 VOC:3.45 ppm|V:0.014 CH3SH:0.45 ppm|STATUS:1|LOW:20|HIGH:50|FS:100
+#   C2H5OH:1.23 %LEL|STATUS:1|LOW:20|HIGH:50|FS:100 C2H4:0.450 ppm|V:0.123 DHT1_T:25.3 C DHT1_H:60 %RH
+# =============================================================================
+
+devices:
+  # ---------- 气体板 ----------
+  - id: esp32_gas
+    name: ESP32-Gas              # 须与固件 SerialBT.begin 一致
+    port: COM5
+    baudrate: 115200
+    parser: unified
+    data_dir: data/esp32_gas
+    # sensors:
+    #   H2S   模拟量 ADC  0~100ppm  → value + voltage
+    #   NH3   模拟量 ADC  0~200ppm  → value + voltage
+    #   VOC   模拟量 ADC  0~500ppm  → value + voltage（原 Modbus 0~100ppm 已更换）
+    #   CH3SH Modbus UART 0~100ppm  → value + extras(STATUS/LOW/HIGH/FS)
+    enabled: true
+
+  # ---------- 环境板（有机气体 + 温湿度）----------
+  - id: esp32_env
+    name: ESP32-Env              # 须与固件 SerialBT.begin 一致
+    port: COM7
+    baudrate: 115200
+    parser: unified
+    data_dir: data/esp32_env
+    # sensors:
+    #   C2H5OH Modbus UART         → value(%LEL) + extras
+    #   C2H4   模拟量 ADC 0~20ppm  → value + voltage（原 Modbus 已更换）
+    #   DHT1 / DHT2 温湿度
+    enabled: true
+
+parsers:
+  unified:
+    pattern: '(?P<sensor>[A-Za-z0-9_]+):(?P<value>-?\d+(?:\.\d+)?)\s+(?P<unit>[^\s|]+)(?:\|(?P<attrs>[^\s]+))?'
+    multi_sensor: true
+
+storage:
+  format: both
+  split_by_sensor: true
+  flush_interval: 5.0
+  sample_interval: 3.0   # 秒，气体/环境读数落盘与上报间隔（未烧录新固件时由 PC 端节流）
+
+# 尖峰 / 骤降清洗：单点毛刺用前后邻域中点替代
+# 判定：两侧跳变 ≥ min_abs_delta，且前后点跨度 ≤ neighbor_factor * min(两侧跳变)
+spike_clean:
+  enabled: true
+  interval: 300.0         # 秒，主循环定期巡检 CSV
+  min_abs_delta: 20.0     # 最小绝对跳变（ppm / %LEL 等）；只抓较明显毛刺
+  neighbor_factor: 0.4    # 前后点须相对接近才判为尖峰/骤降
+  max_passes: 3           # 迭代轮数（处理交替毛刺）
+  online: true            # 写入前延时一拍在线校正
+
+# 全传感器最新值汇总（移动端实时拉取用，原子覆盖写）
+snapshot:
+  enabled: true
+  path: data/latest.json
+  interval: 5.0         # 秒，多久写一次文件
+
+# ---------- USB 摄像头（Logitech C920 等）----------
+# 历史影像: data/camera/history/YYYYMMDD_HHMMSS_mmm.jpg
+# 最新影像: data/latest.jpg（单独列出，供蓝牙传输拉取）
+camera:
+  enabled: true
+  # 本机实测：C920=index1+msmf；内置摄像头=index0+dshow
+  # null/auto 会按 prefer_names 自动试开；也可写死加快启动
+  index: 1
+  prefer_names: ["C920", "Logitech", "HD Pro Webcam", "Logi"]
+  interval: 60.0               # 秒，抓拍间隔（1 分钟）
+  history_dir: data/camera/history
+  latest_path: data/latest.jpg
+  width: 1280
+  height: 720
+  jpeg_quality: 85
+  backend: msmf               # C920 必须用 msmf；dshow 会得到纯色黑帧
+                              # 可用 auto 让程序自动试 msmf/dshow

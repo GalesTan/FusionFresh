@@ -1,0 +1,26 @@
+# FusionFresh 运行时依赖（检测 + 采集 + Demo 可视化）
+# 原环境若已能跑 FusionFreshSever，一般无需重装。
+
+# --- 检测流水线 ---
+torch
+torchvision
+transformers
+timm
+numpy
+Pillow
+opencv-python
+supervision>=0.22.0
+addict
+yapf
+scipy
+
+# --- VL ---
+openai>=1.40.0
+python-dotenv>=1.0.0
+
+# --- 采集 ---
+pyserial>=3.5
+PyYAML>=6.0
+
+# --- Demo 结果页 ---
+flask

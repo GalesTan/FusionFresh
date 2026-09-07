@@ -1,0 +1,25 @@
+# 密钥
+qwen/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 运行时采集数据（不提交历史）
+collect/data/**/*.csv
+collect/data/**/*.jsonl
+collect/data/camera/
+collect/data/latest.jpg
+collect/data/latest.json
+!collect/data/**/.gitkeep
+
+# 检测输出
+outputs/**
+!outputs/.gitkeep
+
+# 编辑器 / 系统
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,102 @@
+{
+  "updated_at": "2026-07-20T11:42:01.392+08:00",
+  "sensor_count": 10,
+  "sensors": {
+    "H2S": {
+      "value": 0.0,
+      "unit": "ppm",
+      "device_id": "esp32_gas",
+      "timestamp": "2026-07-20T11:41:42.687+08:00",
+      "voltage": 0.0
+    },
+    "NH3": {
+      "value": 0.0,
+      "unit": "ppm",
+      "device_id": "esp32_gas",
+      "timestamp": "2026-07-20T11:41:42.687+08:00",
+      "voltage": 0.0
+    },
+    "VOC": {
+      "value": 0.0,
+      "unit": "ppm",
+      "device_id": "esp32_gas",
+      "timestamp": "2026-07-20T11:41:42.687+08:00",
+      "extras": {
+        "STATUS": 3,
+        "LOW": 20,
+        "HIGH": 50,
+        "FS": 100
+      }
+    },
+    "CH3SH": {
+      "value": 0.0,
+      "unit": "ppm",
+      "device_id": "esp32_gas",
+      "timestamp": "2026-07-20T11:41:42.687+08:00",
+      "extras": {
+        "STATUS": 5,
+        "LOW": 20,
+        "HIGH": 50,
+        "FS": 100
+      }
+    },
+    "C2H5OH": {
+      "value": 0.0,
+      "unit": "ppm",
+      "device_id": "esp32_env",
+      "timestamp": "2026-07-20T11:41:52.889+08:00",
+      "extras": {
+        "STATUS": 1,
+        "LOW": 20,
+        "HIGH": 50,
+        "FS": 100
+      }
+    },
+    "C2H4": {
+      "value": 0.0,
+      "unit": "ppm",
+      "device_id": "esp32_env",
+      "timestamp": "2026-07-20T11:41:52.889+08:00",
+      "extras": {
+        "STATUS": 1,
+        "LOW": 20,
+        "HIGH": 50,
+        "FS": 200,
+        "AD": 0
+      }
+    },
+    "DHT1_T": {
+      "value": 28.9,
+      "unit": "C",
+      "device_id": "esp32_env",
+      "timestamp": "2026-07-20T11:41:52.889+08:00"
+    },
+    "DHT1_H": {
+      "value": 86.0,
+      "unit": "%RH",
+      "device_id": "esp32_env",
+      "timestamp": "2026-07-20T11:41:52.889+08:00"
+    },
+    "DHT2_T": {
+      "value": 26.8,
+      "unit": "C",
+      "device_id": "esp32_env",
+      "timestamp": "2026-07-20T11:41:52.889+08:00"
+    },
+    "DHT2_H": {
+      "value": 43.0,
+      "unit": "%RH",
+      "device_id": "esp32_env",
+      "timestamp": "2026-07-20T11:41:52.889+08:00"
+    }
+  },
+  "camera": {
+    "device": "HD Pro Webcam C920",
+    "device_id": "usb_camera",
+    "timestamp": "2026-07-20T11:41:41.270+08:00",
+    "width": 1280,
+    "height": 720,
+    "path": "data/latest.jpg",
+    "history_file": "20260720_114141_270.jpg"
+  }
+}

@@ -1,0 +1,258 @@
+appetizer
+apple
+apple juice
+apple pie
+apricot
+artichoke
+asparagus
+eggplant
+avocado
+baby food
+bacon
+bagel
+baguette
+banana
+banana bread
+bean
+beef
+beer
+beet
+bell pepper
+birthday cake
+biscuit
+blackberry
+blueberry
+boiled egg
+bread
+breakfast
+broccoli
+broth
+brownie
+brunch
+bubble tea
+roll
+burrito
+butter
+cream
+cabbage
+cake
+cake stand
+candy
+candy cane
+cantaloupe
+cappuccino
+caramel
+carrot
+carrot cake
+cauliflower
+celery
+cereal
+champagne
+cheese
+cheeseburger
+cherry
+cherry tomato
+chicken
+chicken breast
+chicken salad
+chicken wing
+chili dog
+chinese cabbage
+chocolate
+chocolate bar
+chocolate cake
+chocolate chip
+chocolate chip cookie
+chocolate milk
+chocolate mousse
+citrus fruit
+clam
+cocktail
+coconut
+coffee
+coffee bean
+comfort food
+corn
+cotton candy
+crab
+cranberry
+lobster
+cream cheese
+croissant
+cucumber
+cuisine
+cupcake
+curry
+date
+dessert
+dinner
+donut
+duck
+dumpling
+egg
+egg roll
+egg tart
+espresso
+fast food
+fig
+fish
+food
+French fries
+French toast
+fried chicken
+fried egg
+fried rice
+fruit
+fruit cake
+fruit salad
+fudge
+ham
+garden asparagus
+garlic
+ginger
+glue pudding
+goat cheese
+granola
+grape
+wine
+hamburger
+hami melon
+hummus
+honey
+icecream
+ice cream cone
+lollipop
+jam
+jelly
+jelly bean
+juice
+kale
+kebab
+king crab
+kiwi
+lamb
+lamb chop
+latte
+lemon
+lemon juice
+lentil
+lettuce
+lime
+litchi
+lunch
+macaroni
+mandarin orange
+mango
+maple syrup
+mashed potato
+meal
+meat
+meatball
+melon
+milk
+milk tea
+milkshake
+mint candy
+moon cake
+muffin
+mushroom
+mussel
+nacho
+noodle
+oatmeal
+octopus
+okra
+omelet
+onion
+onion ring
+orange
+orange juice
+oyster
+pancake
+papaya
+passion fruit
+pasta
+pastry
+peach
+peanut butter
+pear
+pepper
+pepperoni
+pie
+pineapple
+pocket bread
+pizza
+plum
+pomegranate
+popcorn
+pork
+porridge
+potato
+potato chip
+potato salad
+pretzel
+produce
+pudding
+pumpkin
+pumpkin pie
+pumpkin seed
+quesadilla
+raspberry
+red wine
+rice
+roast chicken
+root beer
+salad
+salami
+salmon
+sandwich
+sashimi
+sausage
+scallop
+scrambled egg
+shrimp
+side dish
+snack
+soda
+soup
+sour cream
+soybean milk
+spaghetti
+sparkling wine
+spinach
+spring roll
+squash
+squid
+steak
+steamed bread
+stew
+strawberry
+street food
+string cheese
+submarine sandwich
+sushi
+sweet potato
+syrup
+taco
+tart
+tea
+toast
+tofu
+tomato
+tomato sauce
+tomato soup
+tuna
+turkey
+turnip
+vegetable
+vodka
+waffle
+watermelon
+wedding cake
+western food
+whipped cream
+whiskey
+white wine
+winter melon
+wrap
+yoghurt
