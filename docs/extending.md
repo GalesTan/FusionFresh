@@ -19,7 +19,7 @@
 
 ## 2. 气体融合扩到其它食物
 
-虾仁规则在 `spoilage/shrimp/gas_fusion.py`，仅当检测结果**全部是虾仁**时由 `build_detection_results` 调用。
+虾仁规则在 `spoilage/shrimp/gas_fusion.py`，当检测结果**含有虾仁**时由 `build_detection_results` 调用（全虾仁才允许 H2S/NH3 强制改等级）。
 
 新品类融合建议：
 

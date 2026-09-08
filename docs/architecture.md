@@ -10,7 +10,7 @@ FusionFresh 按**采集 / 感知 / 评分 / 服务**四层划分。算法步骤�
 | 流水线 | `food_pipeline.py` | 打标签 → 检测裁剪 → 按品类评分 → 组装 JSON | 下列全部 |
 | HTTP 服务 | `detect_server.py` | 定时/手动检测、缓存、SSE、历史 | 流水线 |
 | 荔枝评分 | `spoilage/lychee/` | DINOv2 + 多任务头 | torch, torchvision |
-| 虾仁评分 | `spoilage/shrimp/` | EfficientNet-B0 + 多任务头；全虾仁场景气体融合 | torch, OpenCV |
+| 虾仁评分 | `spoilage/shrimp/` | EfficientNet-B0 + 多任务头；含虾仁场景气体融合 | torch, OpenCV |
 | 视觉语言模型 | `qwen/` | 食物标签 + 非荔枝/虾仁裁剪图腐败评估 | OpenAI 兼容 API |
 | RAM++ | `vendor/recognize-anything/` | VL 失败时的标签回退 | torch, transformers, timm |
 | GroundingDINO | `vendor/GroundingDINO/` | 开放词汇框选 | torch, transformers |
@@ -40,11 +40,11 @@ outputs/history.jsonl            历次检测追加日志
    - 荔枝 → `LycheePredictor`  
    - 虾仁 → `ShrimpPredictor`  
    - 其它 → `qwen.assess_spoilage`；失败则占位（`spoilageScore=null`）
-4. **Gas fusion（仅全是虾仁）**  
+4. **Gas fusion（画面中含虾仁时）**  
    读最近约 180s 的 H2S/NH3/VOC/C2H5OH：  
-   - H2S 或 NH3 持续检出 → 强制 `spoiled`  
-   - 否则 VOC 或乙醇持续偏高 → 强制 `spoiling`  
-   其它场景不改视觉分数。
+   - 全是虾仁：H2S 或 NH3 持续检出 → 强制 `spoiled`；VOC 或乙醇偏高 → 只加分、不改等级  
+   - 混合食品：上述气体均只加分、不强制改等级  
+   画面中无虾仁时不改视觉分数。
 5. **Serve**  
    写入 `detection_results.json`；HTTP 再补 `generated_at` / `age_seconds` / `trigger`。
 

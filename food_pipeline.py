@@ -107,7 +107,7 @@ def to_chinese(label, overrides=None):
 # --- Spoilage scoring -------------------------------------------------------
 # Lychee / shrimp: dedicated models.
 # Other foods: Qwen VL on each crop (score / level / message / gases).
-# Shrimp-only scenes may fuse VOC/C2H5OH/H2S/NH3 history (see gas_fusion).
+# Scenes with shrimp may fuse VOC/C2H5OH/H2S/NH3 history (see gas_fusion).
 #
 # producedGases：按食物种类固定关联气体（与腐败等级无关）。
 _FOOD_RELATED_GASES = {
@@ -370,8 +370,9 @@ def build_detection_results(image_path, detections, label_zh=None,
     Lychee/shrimp use dedicated models; other foods use VL on each crop
     (spoilageLevel / message / producedGases included).
 
-    When every detection is shrimp and apply_shrimp_gas is True, fuse
-    esp32 gas history (VOC/C2H5OH → mid, H2S/NH3 → spoiled).
+    When apply_shrimp_gas is True and the scene contains shrimp, fuse
+    esp32 gas history: H2S/NH3 may force spoiled only in shrimp-only
+    scenes; VOC/ethanol (and all gases in mixed scenes) only raise score.
     """
     source_image = os.path.basename(image_path)
     detected_foods = []
@@ -393,9 +394,11 @@ def build_detection_results(image_path, detections, label_zh=None,
         })
 
     shrimp_gas_meta = None
+    has_shrimp = any(_is_shrimp(d.get('label')) for d in detections)
     only_shrimp = bool(detections) and all(
         _is_shrimp(d.get('label')) for d in detections)
-    if apply_shrimp_gas and only_shrimp and detected_foods:
+    gas_scene = 'shrimp_only' if only_shrimp else 'mixed'
+    if apply_shrimp_gas and has_shrimp and detected_foods:
         try:
             from gas_fusion import (
                 DEFAULT_THRESHOLDS,
@@ -404,7 +407,7 @@ def build_detection_results(image_path, detections, label_zh=None,
             )
             data_root = gas_data_root or os.path.join(
                 _HERE, 'collect', 'data')
-            override = evaluate_shrimp_gas_rules(data_root)
+            override = evaluate_shrimp_gas_rules(data_root, scene=gas_scene)
             if override is not None:
                 thresholds = dict(DEFAULT_THRESHOLDS)
                 try:
@@ -424,7 +427,10 @@ def build_detection_results(image_path, detections, label_zh=None,
                     f.get('spoilageLevel') == 'spoiled' for f in detected_foods)
                 shrimp_gas_meta = {
                     'applied': True,
+                    'mode': override.mode,
+                    'scene': gas_scene,
                     'level': override.level,
+                    'score_delta': override.score_delta,
                     'reason': override.reason,
                     'trigger_sensors': override.trigger_sensors,
                     'evidence': override.evidence,
@@ -432,10 +438,18 @@ def build_detection_results(image_path, detections, label_zh=None,
                 }
                 print(f'[shrimp-gas] {override.reason}', flush=True)
             else:
-                shrimp_gas_meta = {'applied': False, 'reason': 'no gas rule hit'}
+                shrimp_gas_meta = {
+                    'applied': False,
+                    'scene': gas_scene,
+                    'reason': 'no gas rule hit',
+                }
         except Exception as exc:
             print(f'[shrimp-gas] fusion skipped: {exc}', flush=True)
-            shrimp_gas_meta = {'applied': False, 'error': str(exc)}
+            shrimp_gas_meta = {
+                'applied': False,
+                'scene': gas_scene,
+                'error': str(exc),
+            }
 
     if not detected_foods:
         top_message = 'Detection Complete. No food items detected.'

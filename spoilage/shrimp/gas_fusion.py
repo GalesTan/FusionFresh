@@ -1,11 +1,11 @@
-"""虾仁场景气体融合规则（仅当检测结果全是虾仁时生效）。
+"""虾仁相关场景的气体融合规则。
 
 规则（窗口默认 180s）：
-1. H2S 或 NH3 在窗口内持续检出（> present_ppm）且未消失 → 强制 spoiled
-2. 否则 VOC 或 C2H5OH（乙醇）在窗口内持续 > mid_ppm → 强制 spoiling（中期）
-3. 强制等级时，图像 score∈[0,1] 线性映射到对应虾仁阈值带：
-   - spoiling → [early_mid, mid_late)
-   - spoiled  → [mid_late, 1.0]
+1. 全是虾仁
+   - H2S 或 NH3 持续检出（> present_ppm）→ 强制 spoiled，分数映射到后期带
+   - VOC 或乙醇持续偏高（> mid_ppm）→ 只给 spoilageScore 加分，不改 spoilageLevel
+2. 混合食品（画面里有虾仁也有其它食物）
+   - 上述气体均只加分，不强制改等级
 其余情况不改图像判定。
 """
 from __future__ import annotations
@@ -39,14 +39,20 @@ DEFAULT_THRESHOLDS = {
     "mid_late": 0.6775257289409637,
 }
 
+# 只加分、不改等级时的增量（硫化氢/氨气更强）
+BOOST_VOC = 0.10
+BOOST_TOXIC = 0.20
+
 
 @dataclass
 class GasOverride:
-    level: str  # spoiling | spoiled
+    mode: str  # force | boost
     reason: str
     trigger_sensors: list[str]
     produced_gases: list[str]
     evidence: dict[str, Any]
+    level: str | None = None  # 仅 force：spoiled（兼容旧字段 spoiling）
+    score_delta: float = 0.0  # 仅 boost
 
 
 def _parse_ts(text: str) -> datetime | None:
@@ -216,9 +222,28 @@ def scale_score_to_level(
     return round(lo + s * (hi - lo), 4)
 
 
+def _series_evidence(
+    series: dict[str, list[tuple[datetime, float, str]]],
+    names: list[str],
+) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for name in names:
+        pts = series[name]
+        if not pts:
+            continue
+        out[name] = {
+            "n": len(pts),
+            "min": min(v for _, v, _ in pts),
+            "max": max(v for _, v, _ in pts),
+            "unit": pts[-1][2],
+        }
+    return out
+
+
 def evaluate_shrimp_gas_rules(
     data_root: Path | None = None,
     *,
+    scene: str = "shrimp_only",
     window_sec: float = 180.0,
     mid_ppm: float = 1.0,
     present_ppm: float = 0.0,
@@ -226,10 +251,13 @@ def evaluate_shrimp_gas_rules(
     min_points: int = 3,
     min_span_sec: float = 150.0,
     stale_sec: float = 90.0,
+    boost_voc: float = BOOST_VOC,
+    boost_toxic: float = BOOST_TOXIC,
 ) -> GasOverride | None:
-    """评估虾仁气体强制规则；不触发则返回 None。"""
+    """评估气体规则。scene 为 shrimp_only 或 mixed；不触发则返回 None。"""
     root = Path(data_root) if data_root else _DEFAULT_DATA_ROOT
     now_dt = now or datetime.now().astimezone()
+    shrimp_only = scene != "mixed"
 
     series = {
         name: load_sensor_window(
@@ -246,13 +274,19 @@ def evaluate_shrimp_gas_rules(
         now=now_dt,
     )
 
-    # 规则 1：H2S / NH3 持续存在 → 腐败
-    toxic_hits = []
-    for name in ("H2S", "NH3"):
-        if continuous_above(series[name], present_ppm, **kwargs):
-            toxic_hits.append(name)
-    if toxic_hits:
+    toxic_hits = [
+        name for name in ("H2S", "NH3")
+        if continuous_above(series[name], present_ppm, **kwargs)
+    ]
+    mid_hits = [
+        name for name in ("VOC", "C2H5OH")
+        if continuous_above(series[name], mid_ppm, **kwargs)
+    ]
+
+    # 全虾仁 + 硫化氢/氨气：唯一允许强制改等级的路径
+    if shrimp_only and toxic_hits:
         return GasOverride(
+            mode="force",
             level="spoiled",
             reason=(
                 f"仅虾仁场景：{ '/'.join(toxic_hits) } "
@@ -260,40 +294,37 @@ def evaluate_shrimp_gas_rules(
             ),
             trigger_sensors=toxic_hits,
             produced_gases=[_GAS_DISPLAY[n] for n in toxic_hits],
-            evidence={
-                name: {
-                    "n": len(series[name]),
-                    "min": min(v for _, v, _ in series[name]),
-                    "max": max(v for _, v, _ in series[name]),
-                    "unit": series[name][-1][2] if series[name] else "",
-                }
-                for name in toxic_hits
-            },
+            evidence=_series_evidence(series, toxic_hits),
         )
 
-    # 规则 2：VOC 或乙醇持续 > mid_ppm → 中期
-    mid_hits = []
-    for name in ("VOC", "C2H5OH"):
-        if continuous_above(series[name], mid_ppm, **kwargs):
-            mid_hits.append(name)
-    if mid_hits:
+    if toxic_hits:
+        # 能走到这里只可能是混合场景（全虾仁已在上方强制）
+        sensors = toxic_hits + [n for n in mid_hits if n not in toxic_hits]
         return GasOverride(
-            level="spoiling",
+            mode="boost",
+            score_delta=float(boost_toxic),
             reason=(
-                f"仅虾仁场景：{ '/'.join(mid_hits) } "
-                f"持续 ≥{window_sec:.0f}s 均 >{mid_ppm:g}，强制判定中期"
+                f"混合食品场景：{ '/'.join(toxic_hits) } "
+                f"已持续 ≥{window_sec:.0f}s 未消失，评分 +{boost_toxic:g}（不改等级）"
+            ),
+            trigger_sensors=sensors,
+            produced_gases=[_GAS_DISPLAY[n] for n in sensors],
+            evidence=_series_evidence(series, sensors),
+        )
+
+    if mid_hits:
+        scene_cn = "仅虾仁" if shrimp_only else "混合食品"
+        return GasOverride(
+            mode="boost",
+            score_delta=float(boost_voc),
+            reason=(
+                f"{scene_cn}场景：{ '/'.join(mid_hits) } "
+                f"持续 ≥{window_sec:.0f}s 均 >{mid_ppm:g}，"
+                f"评分 +{boost_voc:g}（不改等级）"
             ),
             trigger_sensors=mid_hits,
             produced_gases=[_GAS_DISPLAY[n] for n in mid_hits],
-            evidence={
-                name: {
-                    "n": len(series[name]),
-                    "min": min(v for _, v, _ in series[name]),
-                    "max": max(v for _, v, _ in series[name]),
-                    "unit": series[name][-1][2] if series[name] else "",
-                }
-                for name in mid_hits
-            },
+            evidence=_series_evidence(series, mid_hits),
         )
 
     return None
@@ -304,19 +335,47 @@ def apply_gas_override_to_food(
     override: GasOverride,
     thresholds: dict[str, float] | None = None,
 ) -> dict[str, Any]:
-    """就地改写单项食物的等级/分数/气体/文案。"""
+    """就地改写单项食物。force 改等级；boost 只加分。"""
     image_score = food.get("spoilageScore")
-    new_score = scale_score_to_level(image_score, override.level, thresholds)
-    food["spoilageLevel"] = override.level
-    food["spoilageScore"] = new_score
-    # 关联气体按食物种类固定，不只显示触发传感器
-    food["producedGases"] = ["VOC", "Ethanol", "Hydrogen Sulfide", "Ammonia"]
-    if override.level == "spoiled":
-        food["message"] = "气体检测异常，虾仁已不宜食用。"
+    mode = override.mode or ("force" if override.level else "boost")
+
+    if mode == "force":
+        level = override.level or "spoiled"
+        new_score = scale_score_to_level(image_score, level, thresholds)
+        food["spoilageLevel"] = level
+        food["spoilageScore"] = new_score
+        food["producedGases"] = [
+            "VOC", "Ethanol", "Hydrogen Sulfide", "Ammonia",
+        ]
+        if level == "spoiled":
+            food["message"] = "气体检测异常，虾仁已不宜食用。"
+        else:
+            food["message"] = "气体略有升高，虾仁处于中期，建议尽快食用。"
+        food["gasOverride"] = {
+            "mode": "force",
+            "level": level,
+            "reason": override.reason,
+            "trigger_sensors": override.trigger_sensors,
+            "imageScore": image_score,
+            "scaledScore": new_score,
+            "evidence": override.evidence,
+        }
+        return food
+
+    delta = float(override.score_delta)
+    if image_score is None:
+        new_score = None
     else:
-        food["message"] = "气体略有升高，虾仁处于中期，建议尽快食用。"
+        new_score = round(min(1.0, max(0.0, float(image_score) + delta)), 4)
+    food["spoilageScore"] = new_score
+    extra = "气体略有升高，评分已上调。"
+    msg = str(food.get("message") or "").strip()
+    if extra not in msg:
+        food["message"] = f"{msg} {extra}".strip() if msg else extra
     food["gasOverride"] = {
-        "level": override.level,
+        "mode": "boost",
+        "level": food.get("spoilageLevel"),
+        "score_delta": delta,
         "reason": override.reason,
         "trigger_sensors": override.trigger_sensors,
         "imageScore": image_score,

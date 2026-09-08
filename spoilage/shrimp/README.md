@@ -10,7 +10,7 @@
 shrimp/
 ├── predictor.py         # 主推理入口
 ├── patch_sampling.py    # imread_unicode
-├── gas_fusion.py        # 仅虾仁场景的气体覆盖规则
+├── gas_fusion.py        # 含虾仁场景的气体规则（强制仅 H2S/NH3 且全虾仁）
 └── assets/nn_spoilage_head.pt
 ```
 
