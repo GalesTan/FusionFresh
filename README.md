@@ -18,8 +18,7 @@ collect/data/latest.jpg  +  气体 CSV
 VL / RAM++ 打食物标签  →  GroundingDINO 框选裁剪
         │
         ├─ 荔枝  → DINOv2 多任务评分
-        ├─ 虾仁  → EfficientNet-B0 多任务评分
-        │         （全是虾仁时，再按气体规则覆盖等级）
+        ├─ 虾仁  → EfficientNet-B0 多任务评分 + 气体融合
         └─ 其它  → Qwen VL 评估裁剪图
         │
         ▼
@@ -70,7 +69,44 @@ copy qwen\.env.example qwen\.env
 
 若原项目 `FusionFreshSever\qwen\.env` 已有密钥，直接复制过来即可。
 
-DINOv2 荔枝骨干首次运行会从 `torch.hub` 加载（国内可设 `HF_ENDPOINT=https://hf-mirror.com`，流水线已默认该镜像）。
+---
+
+## 下载权重
+
+第三方检测权重体积大（合计约 3.5 GB），**不进 Git**。克隆仓库后放到下面两个固定路径即可。荔枝 / 虾仁评分头（`.pt`）已随仓库提交；DINOv2 荔枝骨干首次运行会由 `torch.hub` 自动下载（流水线默认 `HF_ENDPOINT=https://hf-mirror.com`）。
+
+| 文件 | 约大小 | 放置路径 |
+|------|--------|----------|
+| RAM++ | 2.9 GB | `vendor/recognize-anything/pretrained/ram_plus_swin_large_14m.pth` |
+| GroundingDINO SwinT | 662 MB | `vendor/GroundingDINO/weights/groundingdino_swint_ogc.pth` |
+
+PowerShell（推荐 `curl.exe`，可断点续传）：
+
+```powershell
+New-Item -ItemType Directory -Force -Path `
+  vendor\recognize-anything\pretrained, `
+  vendor\GroundingDINO\weights | Out-Null
+
+# RAM++（Hugging Face；国内走镜像）
+curl.exe -L --retry 5 -C - `
+  "https://hf-mirror.com/xinyu1205/recognize-anything-plus-model/resolve/main/ram_plus_swin_large_14m.pth" `
+  -o "vendor\recognize-anything\pretrained\ram_plus_swin_large_14m.pth"
+
+# GroundingDINO（官方 GitHub Release）
+curl.exe -L --retry 5 -C - `
+  "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth" `
+  -o "vendor\GroundingDINO\weights\groundingdino_swint_ogc.pth"
+```
+
+GitHub 较慢时可改用 Hugging Face 镜像：
+
+```powershell
+curl.exe -L --retry 5 -C - `
+  "https://hf-mirror.com/ShilongLiu/GroundingDINO/resolve/main/groundingdino_swint_ogc.pth" `
+  -o "vendor\GroundingDINO\weights\groundingdino_swint_ogc.pth"
+```
+
+若本机已有这两份文件（例如原 `FusionFreshSever`），复制到上表路径即可，不必重新下载。`tagger=vl` 且 VL 可用时可以暂时不放 RAM++，但 GroundingDINO 始终需要。
 
 ---
 

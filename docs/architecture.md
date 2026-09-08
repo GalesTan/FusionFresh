@@ -59,7 +59,7 @@ outputs/history.jsonl            历次检测追加日志
 
 ## 为何第三方在 `vendor/`
 
-RAM++ 与 GroundingDINO 只保留推理所需代码和权重，去掉训练、Docker、Gradio。通过 `sys.path` 注入，**不改它们内部实现**。
+RAM++ 与 GroundingDINO 只保留推理所需代码，去掉训练、Docker、Gradio。权重（`.pth`）不进 Git，见根目录 README「下载权重」。通过 `sys.path` 注入，**不改它们内部实现**。
 
 ## 相对原项目裁掉了什么
 

@@ -1,9 +1,9 @@
 # vendor
 
-第三方推理代码与权重，仅保留当前工作流需要的部分。
+第三方推理代码，仅保留当前工作流需要的部分。权重体积大，**不进 Git**，下载方式见仓库根目录 [README.md](../README.md) 的「下载权重」。
 
-| 目录 | 用途 | 权重 |
-|------|------|------|
+| 目录 | 用途 | 权重（需自行放置） |
+|------|------|-------------------|
 | `recognize-anything/` | RAM++ 图像打标签（VL 回退） | `pretrained/ram_plus_swin_large_14m.pth` |
 | `GroundingDINO/` | 开放词汇目标检测 | `weights/groundingdino_swint_ogc.pth` |
 
