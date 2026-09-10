@@ -730,6 +730,9 @@ def main():
         '--tagger', choices=['auto', 'vl', 'ram'], default='auto',
         help='food tagger: auto=VL API then RAM++, vl=API only, ram=RAM++ only')
     args = parser.parse_args()
+    args.image = os.path.abspath(args.image)
+    if not os.path.isfile(args.image):
+        raise SystemExit(f'找不到图片: {args.image}')
 
     device = 'cpu' if args.cpu_only or not torch.cuda.is_available() else 'cuda'
     os.makedirs(args.output_dir, exist_ok=True)

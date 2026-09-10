@@ -13,7 +13,13 @@
 在仓库根目录：
 
 ```powershell
-python demo/run_demo.py --image demo/demo10.jpg --cpu-only
+python demo/run_demo.py --image demo/demo16.jpg --cpu-only
+```
+
+或在 `demo/` 目录下用文件名：
+
+```powershell
+python run_demo.py --image demo13.jpg --cpu-only
 ```
 
 结果写到 `outputs/demo_demo6/`（含 `detection_results.json` 与 `crops/`）。

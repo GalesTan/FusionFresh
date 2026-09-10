@@ -18,7 +18,7 @@ from patch_sampling import imread_unicode
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 NN_CKPT = ASSETS_DIR / "nn_spoilage_head.pt"
 
-MODEL_VERSION = "efficientnet_b0_mthead_shrimp_v1"
+MODEL_VERSION = "efficientnet_b0_mthead_shrimp_v2"
 INPUT_SIZE = 224
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)

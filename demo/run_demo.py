@@ -31,10 +31,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    image = Path(args.image)
-    if not image.is_file():
-        image = ROOT / args.image
-    if not image.is_file():
+    raw = Path(args.image).expanduser()
+    candidates = [raw] if raw.is_absolute() else [
+        Path.cwd() / raw,
+        ROOT / raw,
+        ROOT / "demo" / raw.name,
+    ]
+    image = next((p.resolve() for p in candidates if p.is_file()), None)
+    if image is None:
         raise SystemExit(f"找不到图片: {args.image}")
 
     out_dir = Path(args.output_dir) if args.output_dir else (
