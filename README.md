@@ -28,7 +28,7 @@ outputs/latest/detection_results.json
 HTTP：/detect  /latest  /stream  /health  /history
 ```
 
-接口字段、阈值、定时策略、气体规则与原项目一致。对接说明见 [docs/APP_API.md](docs/APP_API.md)。
+接口字段、阈值、定时策略、气体规则与原项目一致。App 三个 URL 怎么填见下文；字段契约见 [docs/APP_API.md](docs/APP_API.md)。
 
 ---
 
@@ -142,6 +142,8 @@ python detect_server.py --cpu-only --host 0.0.0.0 --port 4100
 | `--no-scheduler` | 只响应手动 `/detect` |
 | `--tagger auto` | `auto` / `vl` / `ram` |
 
+手机 App 三个空栏的填写见下一节。
+
 ### 3. Demo（无硬件也可跑）
 
 ```powershell
@@ -153,6 +155,67 @@ python demo/view_results.py --outputs outputs
 ```
 
 浏览器打开提示的地址。Demo 说明见 [demo/README.md](demo/README.md)。
+
+---
+
+## App 三个 URL 怎么填
+
+手机 App 设置里有三栏：**算法服务器 url**、**自动检测 url**、**数据服务器 url**。手机和电脑须同一 Wi‑Fi；算法服务必须 `--host 0.0.0.0`。
+
+### 1. 查电脑局域网 IP
+
+```powershell
+ipconfig
+```
+
+看「无线局域网适配器 WLAN」的 IPv4（下文写成 `<IP>`）。换网络后会变，要改 App 里三处地址。
+
+本机模拟器可用 `127.0.0.1` 代替 `<IP>`。
+
+### 2. 启动两台服务
+
+算法服务（已在上一节）：
+
+```powershell
+python detect_server.py --cpu-only --host 0.0.0.0 --port 4100
+```
+
+数据服务（另开一个终端，给 App 拉传感器快照和最新照片）：
+
+```powershell
+cd collect\data
+python -m http.server 8000 --bind 0.0.0.0
+```
+
+Windows 防火墙若拦截 4100 / 8000，需放行入站。
+
+### 3. 填入 App
+
+把 `<IP>` 换成上一步查到的地址：
+
+| App 空栏 | 填写 | 对应接口 |
+|----------|------|----------|
+| **算法服务器 url** | `http://<IP>:4100/detect` | 「检测」按钮：立刻重跑流水线（数十秒～数分钟） |
+| **自动检测 url** | `http://<IP>:4100/stream` | SSE 长连接，只推送**定时**检测结果 |
+| **数据服务器 url** | `http://<IP>:8000` | 静态目录 `collect/data/`：`/latest.json`、`/latest.jpg` |
+
+App 会把「算法服务器 url」整段拿去 `POST`，**不会**自动补 `/detect`。只填 `http://<IP>:4100` 时，服务端日志是 `POST / … 404`，检测不会跑。必须写成带 `/detect` 的完整地址。
+
+若自动检测连不上，可改填轮询地址 `http://<IP>:4100/latest`（读缓存，毫秒级；与 SSE 二选一即可）。
+
+### 4. 自检
+
+浏览器或本机：
+
+```text
+GET  http://127.0.0.1:4100/health
+GET  http://127.0.0.1:4100/latest
+GET  http://127.0.0.1:8000/latest.json
+```
+
+`/health` 能返回 JSON 说明算法服务已起来。手机上再改成 `<IP>` 填进 App。点「检测」时终端应出现 `POST /detect … 200`，并卡住一段时间（在跑模型），不要立刻 404。
+
+字段含义、错误码见 [docs/APP_API.md](docs/APP_API.md)。VL 打标签需先配置 `qwen/.env`（见上文「环境」）；改 `.env` 后要重启 `detect_server.py`。
 
 ---
 
