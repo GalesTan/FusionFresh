@@ -4,6 +4,8 @@
 
 当前阶段已打通 **硬件采集 → 检测评分 → App 接口** 的完整链路。荔枝、虾仁走专用视觉模型；其它品类由视觉大模型评估。
 
+配套 Android App：[Food-Spoilage-Detector-App](https://github.com/xykhl/Food-Spoilage-Detector-App)
+
 ---
 
 ## 功能
@@ -53,8 +55,6 @@ HTTP：/detect  /latest  /stream  /health  /history
 
 ---
 
-
-
 ## 仓库结构
 
 ```
@@ -71,8 +71,6 @@ FusionFresh/
 ```
 
 ---
-
-
 
 ## 环境
 
@@ -92,8 +90,6 @@ copy qwen\.env.example qwen\.env
 编辑 `qwen/.env`，填入有效的 `DASHSCOPE_API_KEY`。修改后需重启 `detect_server.py` 才会生效。
 
 ---
-
-
 
 ## 下载权重
 
@@ -136,11 +132,7 @@ curl.exe -L --retry 5 -C - `
 
 ---
 
-
-
 ## 快速开始
-
-
 
 ### Demo（无硬件）
 
@@ -188,9 +180,9 @@ python detect_server.py --cpu-only --host 0.0.0.0 --port 4100
 
 ---
 
-
-
 ## 对接手机 App
+
+配套客户端仓库：[xykhl/Food-Spoilage-Detector-App](https://github.com/xykhl/Food-Spoilage-Detector-App)。
 
 手机 App 设置里有三栏：**算法服务器 url**、**自动检测 url**、**数据服务器 url**。手机和电脑须同一 Wi‑Fi；算法服务必须 `--host 0.0.0.0`。
 
@@ -247,8 +239,6 @@ GET  http://127.0.0.1:8000/latest.json
 
 ---
 
-
-
 ## HTTP 接口
 
 
@@ -265,8 +255,6 @@ GET  http://127.0.0.1:8000/latest.json
 
 ---
 
-
-
 ## 扩展
 
 加新品类、换评分模型、接新传感器：见 [docs/extending.md](docs/extending.md)。
@@ -275,17 +263,16 @@ GET  http://127.0.0.1:8000/latest.json
 
 ---
 
-
-
 ## 文档
 
 
-| 文档                                           | 内容                   |
-| -------------------------------------------- | -------------------- |
-| [docs/architecture.md](docs/architecture.md) | 模块划分与运行时数据           |
-| [docs/APP_API.md](docs/APP_API.md)           | App 接口字段与错误码         |
-| [docs/hardware.md](docs/hardware.md)         | ESP32 协议、COM 口与摄像头配置 |
-| [docs/extending.md](docs/extending.md)       | 新品类、气体融合、传感器扩展       |
-| [demo/README.md](demo/README.md)             | Demo 图与可视化           |
+| 文档                                                                                | 内容                   |
+| --------------------------------------------------------------------------------- | -------------------- |
+| [docs/architecture.md](docs/architecture.md)                                      | 模块划分与运行时数据           |
+| [docs/APP_API.md](docs/APP_API.md)                                                | App 接口字段与错误码         |
+| [docs/hardware.md](docs/hardware.md)                                              | ESP32 协议、COM 口与摄像头配置 |
+| [docs/extending.md](docs/extending.md)                                            | 新品类、气体融合、传感器扩展       |
+| [demo/README.md](demo/README.md)                                                  | Demo 图与可视化           |
+| [Food-Spoilage-Detector-App](https://github.com/xykhl/Food-Spoilage-Detector-App) | 配套 Android App       |
 
 
