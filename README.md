@@ -1,19 +1,27 @@
 # FusionFresh
 
-基于视觉与气体传感的食材新鲜度监测系统：采集端持续抓拍并记录传感器数据，检测流水线识别食物并给出腐败评分，HTTP 服务向手机 App 提供检测结果。
+基于多模态传感的腐败食品智能识别。
 
-当前阶段已打通 **硬件采集 → 检测评分 → App 接口** 的完整链路。荔枝、虾仁走专用视觉模型；其它品类由视觉大模型评估。
+家庭储存真正要回答的是两问：**容器里有什么**，以及**已经坏到哪一步**。人工观察主观且滞后；单视觉对早期腐败不敏感；单气体难以归因到具体食物；消费级智能冰箱也往往模态分裂——电子鼻做清洁保鲜，摄像头做种类识别，缺少按食物单元给出的精细新鲜度。
+
+本仓库是可运行的服务链路原型：**硬件采集 → 检测评分 → 手机 App**。荔枝、虾仁走专用视觉模型；其它品类由视觉大模型评估。硬件成本可控制在百元级。
 
 配套 Android App：[Food-Spoilage-Detector-App](https://github.com/xykhl/Food-Spoilage-Detector-App)
+
+<p align="center">
+  <img src="docs/assets/system-overview.jpg" alt="FusionFresh 总体方案：数据采集、智能分析、用户交互" width="900">
+</p>
+
+<p align="center"><sub>数据采集系统、智能分析系统、用户交互系统组成完整的「硬件采集 — 服务器处理 — 用户端接收」闭环。</sub></p>
 
 ---
 
 ## 功能
 
-- **采集**：ESP32 气体/环境板（蓝牙）+ USB 摄像头，持续写入最新照片与传感器快照
-- **识别与定位**：Qwen VL / RAM++ 打食物标签，GroundingDINO 框选并裁剪
+- **采集**：密封食品箱 + 双 ESP32（气体 / 环境）+ USB 摄像头，持续写入最新照片与传感器快照
+- **识别与定位**：Qwen VL / RAM++ 打食物标签，Grounding DINO 框选并裁剪
 - **新鲜度评分**
-  - 荔枝 → DINOv2 多任务评分
+  - 荔枝 → DINOv2 多任务评分（视觉为主）
   - 虾仁 → EfficientNet-B0 多任务评分，并融合近 3 分钟气体数据
   - 其它食物 → Qwen VL 评估裁剪图
 - **服务**：定时检测、手动检测、结果缓存、SSE 推送、历史记录
@@ -21,7 +29,48 @@
 
 ---
 
+## 数据采集
+
+密封亚克力箱模拟冰箱等贮存容器：箱顶摄像头抓拍，箱壁气体模组采气味，两块 ESP32 经蓝牙把读数送到上位机，与画面对齐落盘。
+
+<p align="center">
+  <img src="docs/assets/hardware-system.jpg" alt="数据采集系统：亚克力箱、气体传感器、摄像头、ESP32" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/assets/hardware-box.jpg" alt="实验室现场：密封箱、双 ESP32 与荔枝试样" width="720">
+</p>
+
+<p align="center">
+  <img src="docs/assets/hardware-chamber.jpg" alt="亚克力密封箱" width="200">
+  <img src="docs/assets/hardware-sensors.jpg" alt="气体传感器" width="280">
+  <img src="docs/assets/hardware-camera.jpg" alt="Logitech C920" width="220">
+  <img src="docs/assets/hardware-esp32.jpg" alt="ESP32" width="240">
+</p>
+
+| 板 | 蓝牙名 | 采集通道 |
+|----|--------|----------|
+| `esp32_gas` | ESP32-Gas | 硫化氢、氨气、VOC、甲硫醇 |
+| `esp32_env` | ESP32-Env | 乙醇、乙烯、两路温湿度 |
+| USB 摄像头 | Logitech C920 等 | `collect/data/latest.jpg`（检测默认输入） |
+
+不同食品释放的特征气体不同，采集端按品类常见标志物布点，而不是等权堆叠探头：
+
+<p align="center">
+  <img src="docs/assets/food-gas-map.jpg" alt="不同食品的典型腐败气体" width="860">
+</p>
+
+协议、COM 口与摄像头配置见 [docs/hardware.md](docs/hardware.md)，采集程序见 [collect/README.md](collect/README.md)。
+
+---
+
 ## 检测流水线
+
+算法不把整张图直接判成「新鲜 / 腐败」，而是**先拆成食物单元，再按品类选择证据**：荔枝外观主导、虾仁气体先导、未标定品类走视觉大模型回退。
+
+<p align="center">
+  <img src="docs/assets/algo-flow.jpg" alt="算法流程：采集、VLM/RAM++、Grounding DINO、品类专家与气体规则" width="900">
+</p>
 
 ```
 ESP32 气体/环境板 + USB 摄像头
@@ -30,7 +79,7 @@ ESP32 气体/环境板 + USB 摄像头
 collect/data/latest.jpg  +  气体 CSV
         │
         ▼
-VL / RAM++ 打食物标签  →  GroundingDINO 框选裁剪
+VL / RAM++ 打食物标签  →  Grounding DINO 框选裁剪
         │
         ├─ 荔枝  → DINOv2 多任务评分
         ├─ 虾仁  → EfficientNet-B0 多任务评分 + 气体融合
@@ -46,12 +95,54 @@ HTTP：/detect  /latest  /stream  /health  /history
 一次检测的步骤：
 
 1. **Tagger**（默认 `auto`）：先用 Qwen VL 得到英文食物标签与期望数量；失败则回退到 RAM++。
-2. **Detect**：标签拼成 GroundingDINO caption，框选并裁剪到 `outputs/.../crops/`。
+2. **Detect**：标签拼成 Grounding DINO caption，框选并裁剪到 `outputs/.../crops/`。
 3. **Score**：荔枝 / 虾仁走专用模型，其余走 VL；VL 失败时该条目 `spoilageScore` 为 `null`。
 4. **Gas fusion**：画面中含虾仁时，读取最近约 180s 的 H2S / NH3 / VOC / C2H5OH。全是虾仁且 H2S 或 NH3 持续检出时强制为 `spoiled`；VOC 或乙醇偏高只加分、不改等级。画面中无虾仁时不改视觉分数。
 5. **Serve**：写入 `detection_results.json`；HTTP 层再补 `generated_at` / `age_seconds` / `trigger`。
 
+食品科学与密封标定都表明：虾仁**早期**释放乙醇、VOC，**严重腐败**时出现氨气和硫化氢。融合因此写成可解释规则——**能归因才改结论，不能归因只提示风险**。
+
+<p align="center">
+  <img src="docs/assets/gas-viewer.jpg" alt="虾仁全周期画面与气体曲线" width="900">
+</p>
+
 字段契约见 [docs/APP_API.md](docs/APP_API.md)。模块划分见 [docs/architecture.md](docs/architecture.md)。
+
+---
+
+## 效果
+
+复杂场景按**食物单元**给结论，而不是整图一个标签。
+
+| 场景 | 结果 |
+|------|------|
+| 同品类不同状态（新鲜荔枝与腐败荔枝同框） | 分别给出类别与三级状态 |
+| 多种类多状态（香蕉 + 荔枝） | 种类、数量、新鲜程度能分开 |
+| 密集不可分（青虾仁堆叠） | 按聚集区域检测并评分 |
+
+<p align="center">
+  <img src="docs/assets/result-lychee.jpg" alt="混合状态荔枝检测卡片" width="720">
+</p>
+<p align="center">
+  <img src="docs/assets/result-mixed.jpg" alt="香蕉与荔枝混合检测卡片" width="720">
+</p>
+<p align="center">
+  <img src="docs/assets/result-shrimp.jpg" alt="密集虾仁聚集区域检测" width="420">
+</p>
+
+---
+
+## 用户交互（App）
+
+检测页展示最新画面、气体读数和按食物排列的结果卡片；历史页看曲线与既往检测；设置页配置服务器地址。腐败达到阈值时推送提醒。
+
+<p align="center">
+  <img src="docs/assets/app-slide.jpg" alt="App：实时监测、数据可视化、腐败估计、智能预警" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/assets/app-detect.jpg" alt="App 检测页：框选、传感器读数与开始检测" width="420">
+</p>
 
 ---
 
@@ -95,12 +186,10 @@ copy qwen\.env.example qwen\.env
 
 第三方检测权重体积较大（合计约 3.5 GB），**不纳入 Git**。克隆仓库后放到下列固定路径即可。荔枝 / 虾仁评分头（`.pt`）已随仓库提交；DINOv2 荔枝骨干首次运行会由 `torch.hub` 自动下载（流水线默认 `HF_ENDPOINT=https://hf-mirror.com`）。
 
-
-| 文件                  | 约大小    | 放置路径                                                               |
-| ------------------- | ------ | ------------------------------------------------------------------ |
-| RAM++               | 2.9 GB | `vendor/recognize-anything/pretrained/ram_plus_swin_large_14m.pth` |
-| GroundingDINO SwinT | 662 MB | `vendor/GroundingDINO/weights/groundingdino_swint_ogc.pth`         |
-
+| 文件 | 约大小 | 放置路径 |
+|------|--------|----------|
+| RAM++ | 2.9 GB | `vendor/recognize-anything/pretrained/ram_plus_swin_large_14m.pth` |
+| GroundingDINO SwinT | 662 MB | `vendor/GroundingDINO/weights/groundingdino_swint_ogc.pth` |
 
 PowerShell（推荐 `curl.exe`，支持断点续传）：
 
@@ -168,13 +257,11 @@ python collect/main.py
 python detect_server.py --cpu-only --host 0.0.0.0 --port 4100
 ```
 
-
-| 参数               | 含义                    |
-| ---------------- | --------------------- |
-| `--interval 2`   | 定时检测间隔（小时，默认 2）       |
-| `--no-scheduler` | 只响应手动 `/detect`       |
-| `--tagger auto`  | `auto` / `vl` / `ram` |
-
+| 参数 | 含义 |
+|------|------|
+| `--interval 2` | 定时检测间隔（小时，默认 2） |
+| `--no-scheduler` | 只响应手动 `/detect` |
+| `--tagger auto` | `auto` / `vl` / `ram` |
 
 日常部署建议同时运行采集进程与算法服务：前者写 `latest.jpg` 与气体 CSV，后者默认每 2 小时检测一次，App 通过 `/latest` 或 `/stream` 取结果。
 
@@ -215,13 +302,11 @@ Windows 防火墙若拦截 4100 / 8000，需放行入站。
 
 把 `<IP>` 换成上一步查到的地址：
 
-
-| App 空栏        | 填写                        | 对应接口                                              |
-| ------------- | ------------------------- | ------------------------------------------------- |
-| **算法服务器 url** | `http://<IP>:4100/detect` | 「检测」按钮：立刻重跑流水线（数十秒～数分钟）                           |
-| **自动检测 url**  | `http://<IP>:4100/stream` | SSE 长连接，只推送**定时**检测结果                             |
-| **数据服务器 url** | `http://<IP>:8000`        | 静态目录 `collect/data/`：`/latest.json`、`/latest.jpg` |
-
+| App 空栏 | 填写 | 对应接口 |
+|----------|------|----------|
+| **算法服务器 url** | `http://<IP>:4100/detect` | 「检测」按钮：立刻重跑流水线（数十秒～数分钟） |
+| **自动检测 url** | `http://<IP>:4100/stream` | SSE 长连接，只推送**定时**检测结果 |
+| **数据服务器 url** | `http://<IP>:8000` | 静态目录 `collect/data/`：`/latest.json`、`/latest.jpg` |
 
 App 会把「算法服务器 url」整段拿去 `POST`，**不会**自动补 `/detect`。只填 `http://<IP>:4100` 时，服务端日志是 `POST / … 404`，检测不会跑。必须写成带 `/detect` 的完整地址。
 
@@ -241,15 +326,13 @@ GET  http://127.0.0.1:8000/latest.json
 
 ## HTTP 接口
 
-
-| 方法         | 路径         | 说明                                           | 耗时      |
-| ---------- | ---------- | -------------------------------------------- | ------- |
-| GET / POST | `/detect`  | 立即重跑完整流水线，更新 `/latest` 缓存；**不**推送到 `/stream` | 数十秒～数分钟 |
-| GET        | `/latest`  | 返回缓存的最新检测结果                                  | 毫秒级     |
-| GET        | `/stream`  | SSE：仅推送定时检测完成的结果                             | 长连接     |
-| GET        | `/health`  | 服务状态、缓存新鲜度                                   | 毫秒级     |
-| GET        | `/history` | 历史检测记录（可选 `?limit=` / `?since=`）             | 毫秒级     |
-
+| 方法 | 路径 | 说明 | 耗时 |
+|------|------|------|------|
+| GET / POST | `/detect` | 立即重跑完整流水线，更新 `/latest` 缓存；**不**推送到 `/stream` | 数十秒～数分钟 |
+| GET | `/latest` | 返回缓存的最新检测结果 | 毫秒级 |
+| GET | `/stream` | SSE：仅推送定时检测完成的结果 | 长连接 |
+| GET | `/health` | 服务状态、缓存新鲜度 | 毫秒级 |
+| GET | `/history` | 历史检测记录（可选 `?limit=` / `?since=`） | 毫秒级 |
 
 建议 App「检测」按钮调 `/detect`（需提示用户等待）；后台展示用 `/latest` 或订阅 `/stream`。字段含义与错误码见 [docs/APP_API.md](docs/APP_API.md)。
 
@@ -265,14 +348,12 @@ GET  http://127.0.0.1:8000/latest.json
 
 ## 文档
 
-
-| 文档                                                                                | 内容                   |
-| --------------------------------------------------------------------------------- | -------------------- |
-| [docs/architecture.md](docs/architecture.md)                                      | 模块划分与运行时数据           |
-| [docs/APP_API.md](docs/APP_API.md)                                                | App 接口字段与错误码         |
-| [docs/hardware.md](docs/hardware.md)                                              | ESP32 协议、COM 口与摄像头配置 |
-| [docs/extending.md](docs/extending.md)                                            | 新品类、气体融合、传感器扩展       |
-| [demo/README.md](demo/README.md)                                                  | Demo 图与可视化           |
-| [Food-Spoilage-Detector-App](https://github.com/xykhl/Food-Spoilage-Detector-App) | 配套 Android App       |
-
-
+| 文档 | 内容 |
+|------|------|
+| [docs/architecture.md](docs/architecture.md) | 模块划分与运行时数据 |
+| [docs/APP_API.md](docs/APP_API.md) | App 接口字段与错误码 |
+| [docs/hardware.md](docs/hardware.md) | ESP32 协议、COM 口与摄像头配置 |
+| [docs/extending.md](docs/extending.md) | 新品类、气体融合、传感器扩展 |
+| [collect/README.md](collect/README.md) | 采集程序启动 |
+| [demo/README.md](demo/README.md) | Demo 图与可视化 |
+| [Food-Spoilage-Detector-App](https://github.com/xykhl/Food-Spoilage-Detector-App) | 配套 Android App |
