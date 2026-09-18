@@ -27,9 +27,9 @@ STAGE_CN = {0: "新鲜", 1: "中期", 2: "腐败"}
 # 兼容旧 App 映射：uncertain ≈ 中期 / spoiling
 STAGE_EN = {0: "fresh", 1: "uncertain", 2: "spoiled"}
 STAGE_MSG = {
-    "fresh": "Shrimp fresh (score {score:.2f}).",
-    "uncertain": "Shrimp mid stage / transitional (score {score:.2f}).",
-    "spoiled": "Shrimp spoiled (score {score:.2f}).",
+    "fresh": "虾仁新鲜，可放心食用（评分 {score:.2f}）。",
+    "uncertain": "虾仁处于中期，建议尽快食用（评分 {score:.2f}）。",
+    "spoiled": "虾仁已腐败，不宜食用（评分 {score:.2f}）。",
 }
 
 

@@ -120,18 +120,18 @@ _DEFAULT_RELATED_GASES = ['VOC', 'Ethanol']
 _SPOILAGE = {
     'fresh': {
         'weight': 70,
-        'messages': ['Perfectly ripe.', 'Fresh and ripe.',
-                     'In great condition.', 'Freshly stocked.'],
+        'messages': ['状态良好，新鲜可食。', '新鲜成熟，可放心食用。',
+                     '品相完好，新鲜可食。', '新鲜到货，状态良好。'],
     },
     'spoiling': {
         'weight': 22,
-        'messages': ['Past peak — use soon.', 'Starting to soften.',
-                     'Early signs of spoilage.'],
+        'messages': ['已过最佳赏味期，请尽快食用。', '开始变软，建议尽快食用。',
+                     '出现早期变质迹象，请尽快食用。'],
     },
     'spoiled': {
         'weight': 8,
-        'messages': ['Spoiled — discard.', 'No longer safe to eat.',
-                     'Significant spoilage detected.'],
+        'messages': ['已变质，请丢弃。', '已不宜食用。',
+                     '明显腐败，不宜食用。'],
     },
 }
 _LEVELS = list(_SPOILAGE)
@@ -140,9 +140,9 @@ _WEIGHTS = [_SPOILAGE[lvl]['weight'] for lvl in _LEVELS]
 # LycheePredictor rating_id → app spoilageLevel
 _LYCHEE_RATING_TO_LEVEL = {0: 'fresh', 1: 'spoiling', 2: 'spoiled'}
 _LYCHEE_LEVEL_MESSAGES = {
-    'fresh': 'Lychee early stage - fresh (score {score:.2f}).',
-    'spoiling': 'Lychee mid stage - use soon (score {score:.2f}).',
-    'spoiled': 'Lychee late stage - spoiled (score {score:.2f}).',
+    'fresh': '荔枝处于前期，新鲜可食（评分 {score:.2f}）。',
+    'spoiling': '荔枝处于中期，建议尽快食用（评分 {score:.2f}）。',
+    'spoiled': '荔枝已腐败，不宜食用（评分 {score:.2f}）。',
 }
 
 # shrimp_infer native level → app spoilageLevel (uncertain ≈ mid / spoiling)
@@ -270,8 +270,9 @@ def _spoilage_from_vl(pred, label=None):
         level = 'spoiling'
     score = round(float(pred.get('spoilageScore', 0.0)), 4)
     score = min(max(score, 0.0), 1.0)
+    _level_zh = {'fresh': '新鲜', 'spoiling': '开始转差', 'spoiled': '已不宜食用'}
     message = str(pred.get('message') or '').strip() or (
-        f'VL spoilage {level} (score {score:.2f}).')
+        f'视觉评估为{_level_zh.get(level, level)}（评分 {score:.2f}）。')
     # 已知食物用固定关联气体；未知食物才回退 VL 返回值
     if _is_shrimp(label) or _is_lychee(label) or _is_banana(label):
         gases = _related_gases_for_label(label)
@@ -452,13 +453,11 @@ def build_detection_results(image_path, detections, label_zh=None,
             }
 
     if not detected_foods:
-        top_message = 'Detection Complete. No food items detected.'
+        top_message = '检测完成。未识别到食物。'
     elif any_spoiled:
-        top_message = ('Detection Complete. Spoiled items detected — '
-                       'please inspect.')
+        top_message = '检测完成。发现已变质物品，请及时检查。'
     else:
-        top_message = ('Detection Complete. All items analyzed are '
-                       'currently fresh.')
+        top_message = '检测完成。所检物品目前均新鲜。'
 
     result = {
         'isSpoiled': any_spoiled,

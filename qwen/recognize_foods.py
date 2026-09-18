@@ -85,7 +85,7 @@ _SPOILAGE_SYSTEM_PROMPT = '''\
 {
   "spoilageScore": 0.0,
   "spoilageLevel": "fresh",
-  "message": "Short English status for the app.",
+  "message": "面向 App 的一句中文状态说明。",
   "producedGases": ["Ethylene"]
 }
 
@@ -101,7 +101,7 @@ spoilageLevel 只能是以下之一：
 - "spoiling"：开始转差，建议尽快食用
 - "spoiled"：已不宜食用（对应高 spoilageScore，接近或等于 1）
 
-message：一句简短英文说明，面向 App 展示（可提及食物名与大致状态）。
+message：一句简短中文说明，面向 App 展示（可提及食物名与大致状态）。
 
 producedGases：该食物在此阶段通常相关的气体英文名列表，优先从下列选取：
 Ethylene, Ethanol, Ammonia, Hydrogen Sulfide, Methanethiol, VOC
@@ -307,8 +307,10 @@ def _normalize_spoilage_result(parsed: dict, food_label: str = '') -> dict:
 
     message = str(parsed.get('message') or '').strip()
     if not message:
-        label = (food_label or 'Food').strip() or 'Food'
-        message = f'{label} looks {level} (score {score:.2f}).'
+        label = (food_label or '食物').strip() or '食物'
+        level_zh = {'fresh': '新鲜', 'spoiling': '开始转差',
+                    'spoiled': '已不宜食用'}.get(level, level)
+        message = f'{label}看起来{level_zh}（评分 {score:.2f}）。'
 
     return {
         'spoilageScore': score,
@@ -343,7 +345,7 @@ def assess_spoilage(
         'Assess edible quality / spoilage. '
         'spoilageScore: 0=very fresh, approaching 1=less edible, '
         '1=inedible (not "fully rotten"; once unsafe to eat, stay at 1). '
-        'Also give spoilageLevel, English message, producedGases. '
+        'Also give spoilageLevel, a short Chinese message, producedGases. '
         'Output JSON only.'
     )
 

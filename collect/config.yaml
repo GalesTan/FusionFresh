@@ -84,7 +84,7 @@ camera:
   # null/auto 会按 prefer_names 自动试开；也可写死加快启动
   index: 1
   prefer_names: ["C920", "Logitech", "HD Pro Webcam", "Logi"]
-  interval: 60.0               # 秒，抓拍间隔（1 分钟）
+  interval: 10.0               # 秒，抓拍间隔（10 秒）
   history_dir: data/camera/history
   latest_path: data/latest.jpg
   width: 1280
